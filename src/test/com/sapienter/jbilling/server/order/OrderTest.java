@@ -56,7 +56,7 @@ public class OrderTest extends TestCase {
             assertEquals("billing type", new Integer(2), order.getBillingTypeId());            
         } catch (Exception e) {
             e.printStackTrace(System.err);
-            fail("Exception : " + e.getMessage());
+            fail("Exception :" + e.getMessage());
         }
         
     }

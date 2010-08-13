@@ -12,30 +12,27 @@
        http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd">
 
     <!-- SOAP Web Service -->
-    <!--
+    
     <jaxws:client id="apiClient"
             serviceClass="com.sapienter.jbilling.server.util.IWebServicesSessionBean"
             address="http://localhost/billing/cxf/soap.service"
             username="admin" password="123qwe"/>
-    -->
+    
 
     <!-- RMI Service -->
-    <!--
     <bean id="apiClient" class="org.springframework.remoting.rmi.RmiProxyFactoryBean" lazy-init="true">
         <property name="serviceUrl" value="rmi://localhost:1199/RmiService"/>
         <property name="serviceInterface" value="com.sapienter.jbilling.server.util.IWebServicesSessionBean"/>
     </bean>
-    -->
     
-    <!-- Burlap Web Service -->
-    <!--
+    <!-- Burlap Web Service -->    
     <bean id="apiClient" class="org.springframework.remoting.caucho.BurlapProxyFactoryBean" lazy-init="true">
         <property name="serviceUrl" value="http://localhost/billing/services/burlap.service"/>
         <property name="serviceInterface" value="com.sapienter.jbilling.server.util.IWebServicesSessionBean"/>
         <property name="username" value="admin"/>
         <property name="password" value="123qwe"/>
     </bean>
-    -->
+    
 
 
     <!-- Hessian Web Service -->

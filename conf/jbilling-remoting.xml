@@ -19,7 +19,7 @@
 
 
     <!-- SOAP Web Service -->
-    <!--
+ 
     <import resource="classpath:META-INF/cxf/cxf.xml" />
     <import resource="classpath:META-INF/cxf/cxf-extension-soap.xml" />
     <import resource="classpath:META-INF/cxf/cxf-servlet.xml" />
@@ -28,39 +28,42 @@
                     implementor="#webServicesSession"
                     implementorClass="com.sapienter.jbilling.server.util.WebServicesSessionSpringBean"
                     address="/soap.service"/>
-    -->
+    
 
     <!-- RMI Service -->
     <!-- Note: calls are unauthenticated and require a default username/password for use, configured below. -->
-    <!--
+    
     <bean class="org.springframework.remoting.rmi.RmiServiceExporter">
         <property name="service" ref="webServicesSession"/>
         <property name="serviceName" value="RmiService"/>
         <property name="serviceInterface" value="com.sapienter.jbilling.server.util.IWebServicesSessionBean"/>
         <property name="registryPort" value="1199"/>
     </bean>
-    -->
+    
 
     <!-- Username and password for unsecured API calls like RMI above. Uncomment if unauthenticated calls are used. -->
-    <!--
+    
     <bean id="webServicesCallerDefaults" class="com.sapienter.jbilling.server.util.WebServicesCaller$Defaults">
          <property name="username" value="admin"/>
          <property name="password" value="123qwe"/>
     </bean>
-    -->
+    
 
     <!-- Burlap Web Service -->
+    
     <bean name="burlapService" class="org.springframework.remoting.caucho.BurlapServiceExporter">
         <property name="service" ref="webServicesSession"/>
         <property name="serviceInterface" value="com.sapienter.jbilling.server.util.IWebServicesSessionBean"/>
     </bean>
-
+		
+	
     <!-- Hessian Web Service -->
+    
     <bean name="hessianService" class="org.springframework.remoting.caucho.HessianServiceExporter">
         <property name="service" ref="webServicesSession"/>
         <property name="serviceInterface" value="com.sapienter.jbilling.server.util.IWebServicesSessionBean"/>
     </bean>
-
+	
 
     <!-- Remote Session Bean Services -->
     <!--

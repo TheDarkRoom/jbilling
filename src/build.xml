@@ -302,13 +302,14 @@
                 <include name="*.jasper"/>
             </fileset>
         </copy>
-        <copy todir="${jbilling.conf.dir}" overwrite="yes">
+        <!--copy todir="${jbilling.conf.dir}" overwrite="yes"-->
+    	<copy todir="${jbillingbinary.conf.dir}" overwrite="yes">
             <fileset dir="${source.spring.descriptor.dir}">
                 <include name="*.xml"/>
             </fileset>
         </copy>
-        <copy file="${source.resources.descriptor.dir}/log4j.xml" 
-              todir="${jbilling.conf.dir}"/>
+        <!--copy file="${source.resources.descriptor.dir}/log4j.xml" todir="${jbilling.conf.dir}"/-->
+    	<copy file="${source.resources.descriptor.dir}/log4j.xml" todir="${jbillingbinary.conf.dir}"/>
     </target>
     
     <!-- compile the Jasper design reports -->

@@ -7,7 +7,8 @@
         <fileset dir="${source.lib.dir}">
             <include name="*.jar"/>
         </fileset>
-        <fileset dir="${basedir}/../lib">
+        <!--fileset dir="${basedir}/../lib"-->
+    	<fileset dir="${binary.dir}/lib"><!-- Needs the server-api.jar -->
             <include name="**/*.jar"/>
         </fileset>
         <pathelement location="${digester.jar}"/>
@@ -65,7 +66,7 @@
     
     <path id="hibernate.classpath">
         <fileset dir="${hibernate.tools.dir}">
-            <include name="**/*.jar"/>
+            <include name="**/*.jar"/><!--Here? -->
         </fileset>
         <pathelement location="${source.lib.dir}/postgresql*.jar"/>
     </path>
@@ -75,7 +76,8 @@
     </path>
 
     <path id="tomcat.classpath">
-        <fileset dir="${server.dir}/lib">
+        <!--fileset dir="${server.dir}/lib"-->
+    	<fileset dir="${binary.dir}/lib">
             <include name="**/*.jar"/>
         </fileset>
     </path>
@@ -698,10 +700,12 @@ server="upload.sourceforge.net" userid="anonymous">
         <taskdef classname="org.apache.jasper.JspC" name="jasper2"> 
             <classpath id="jspc.classpath">
                 <!-- Classpath for extra jars -->
-                <fileset dir="${tools.dir}/lib">
+                <!--fileset dir="${tools.dir}/lib"-->
+            	<fileset dir="${binary.dir}/lib">
                     <include name="*.jar" />
                 </fileset>
-                <fileset dir="${tools.dir}/bin">
+                <!--fileset dir="${tools.dir}/bin"-->
+            	<fileset dir="${binary.dir}/bin">            	
                     <include name="*.jar" />
                 </fileset>
                 <fileset dir="${libs.dir}">

@@ -1,7 +1,13 @@
 package com.sapienter.jbilling.server.payment.tasks;
 
+import java.math.BigDecimal;
 import java.text.DateFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import com.sapienter.jbilling.server.payment.db.PaymentAuthorizationDTO;
 
 import junit.framework.TestCase;
 
@@ -49,8 +55,7 @@ public class IDirectDebitTest extends TestCase{
 	public void testValidate(){
 		
 		//Prepare params
-		//String username = "apitestno31";
-		//String password = "APINo3196";
+		//Username and password not stored.
 		
 		String firstname = "John";
 		String lastname = "Smith";
@@ -68,7 +73,7 @@ public class IDirectDebitTest extends TestCase{
 		//String debitDate = df.format(new Date()); //Needs to be 13 days ahead
 		//String debitDate = "2010-08-12";		
 		
-		IDirectDebit iDirectDebit = new IDirectDebit();		
+		PaymentIDirectDebitTask iDirectDebit = new PaymentIDirectDebitTask();		
 		boolean isValidated = iDirectDebit.validate(firstname, lastname, address1, town, postcode, country, accountName, sortCode, accountNumber, emailAddress);
 		assertEquals(true,isValidated);
 		
@@ -78,7 +83,7 @@ public class IDirectDebitTest extends TestCase{
 		assertEquals(false,isValidated);		
 		
 	}
-	
+	/*
 	public void testCreate(){
 		
 		//Prepare params
@@ -113,6 +118,7 @@ public class IDirectDebitTest extends TestCase{
 		
 	}	
 	*/
+	/*
 	public void testUpdate(){
 		
 		//Prepare params
@@ -128,10 +134,91 @@ public class IDirectDebitTest extends TestCase{
 		DateFormat df = new SimpleDateFormat("yyyy-MM-dd");		       
 		String debitDate = df.format(System.currentTimeMillis()+(1000l*60*60*24*13)); //13 days after request				
 				
-		IDirectDebit iDirectDebit = new IDirectDebit();		
-		boolean willBeBilled = iDirectDebit.update(referenceNumber, amountInPence, debitDate);
+		PaymentIDirectDebitTask paymentIDirectDebit = new PaymentIDirectDebitTask();		
+		PaymentAuthorizationDTO paymentAuthorizationDTO = null;
+		try {
+			paymentAuthorizationDTO = paymentIDirectDebit.update(referenceNumber, amountInPence, debitDate);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			System.out.println("Exception e:"+e.getMessage());
+		}
 		
-		assertEquals(true,willBeBilled);
+		assertEquals("200",paymentAuthorizationDTO.getCode1());
 	}	
+	*/
+	
+	public void testBigAmount(){
+
+		BigDecimal amountInPounds= new BigDecimal(10.00);
+		BigDecimal bDAmountInPence = amountInPounds.multiply(new BigDecimal(100));
+		int amountInPence = bDAmountInPence.intValue();
+		System.out.println("process amountInPence:"+amountInPence);
+		assertEquals(1000,amountInPence);
+		
+		amountInPounds= new BigDecimal(10);	
+		bDAmountInPence = amountInPounds.multiply(new BigDecimal(100));
+		amountInPence = bDAmountInPence.intValue();		
+		System.out.println("process amountInPence:"+amountInPence);
+		assertEquals(1000,amountInPence);	
+		
+		amountInPounds= new BigDecimal(10.50);
+		bDAmountInPence = amountInPounds.multiply(new BigDecimal(100));
+		amountInPence = bDAmountInPence.intValue();		
+		System.out.println("process amountInPence:"+amountInPence);
+		assertEquals(1050,amountInPence);		
+				
+	}
+	
+	public void testGetDirectDebitDate(){
+		PaymentIDirectDebitTask task = new PaymentIDirectDebitTask();
+		DateFormat df = new SimpleDateFormat("yyyy-MM-dd");			
+		try{
+			String createdDate = "2010-08-20";
+			String directDebitDate = task.getDirectDebitDate(createdDate);
+			System.out.println("createdDate:"+createdDate+" directDebitDate:"+directDebitDate);
+			
+			//Ensure its at least 18 days difference
+			Date dCreatedDate = df.parse(createdDate);
+			long lCreatedDate = dCreatedDate.getTime();
+			
+			Date dDirectDebitDate = df.parse(directDebitDate);
+			long lDirectDebitDate = dDirectDebitDate.getTime();
+			
+			assertTrue((lDirectDebitDate-lCreatedDate)>=(18l*24*60*60*1000));
+			
+
+			createdDate = "2010-08-01";
+			directDebitDate = task.getDirectDebitDate(createdDate);
+			System.out.println("createdDate:"+createdDate+" directDebitDate:"+directDebitDate);
+			
+			//Ensure its at least 18 days difference
+			dCreatedDate = df.parse(createdDate);
+			lCreatedDate = dCreatedDate.getTime();
+			
+			dDirectDebitDate = df.parse(directDebitDate);
+			lDirectDebitDate = dDirectDebitDate.getTime();
+			
+			assertTrue((lDirectDebitDate-lCreatedDate)>=(18l*24*60*60*1000));
+			
+			
+			createdDate = "2010-08-30";
+			directDebitDate = task.getDirectDebitDate(createdDate);
+			System.out.println("createdDate:"+createdDate+" directDebitDate:"+directDebitDate);
+			
+			//Ensure its at least 18 days difference
+			dCreatedDate = df.parse(createdDate);
+			lCreatedDate = dCreatedDate.getTime();
+			
+			dDirectDebitDate = df.parse(directDebitDate);
+			lDirectDebitDate = dDirectDebitDate.getTime();
+			
+			assertTrue((lDirectDebitDate-lCreatedDate)>=(18l*24*60*60*1000));			
+			
+		}
+		catch(Exception e){
+			
+		}
+	}
+	
 	
 }

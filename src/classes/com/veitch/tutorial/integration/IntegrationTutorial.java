@@ -7,6 +7,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Set;
 
 import com.sapienter.jbilling.server.entity.CreditCardDTO;
 import com.sapienter.jbilling.server.order.OrderLineWS;
@@ -14,9 +15,11 @@ import com.sapienter.jbilling.server.order.OrderWS;
 import com.sapienter.jbilling.server.util.api.JbillingAPI;
 import com.sapienter.jbilling.server.util.api.JbillingAPIException;
 import com.sapienter.jbilling.server.util.api.JbillingAPIFactory;
+import com.sapienter.jbilling.server.user.ContactDTOEx;
 import com.sapienter.jbilling.server.user.ContactWS;
 import com.sapienter.jbilling.server.user.UserWS;
 import com.sapienter.jbilling.server.user.contact.db.ContactDTO;
+import com.sapienter.jbilling.server.user.contact.db.ContactFieldDTO;
 
 public class IntegrationTutorial {
 
@@ -122,6 +125,51 @@ public class IntegrationTutorial {
 	}
 
 	
+	public void getCustomerContacts(int userId){
+		
+		// Create and initialize the jBilling API.
+		JbillingAPI api = null;
+		try {
+			api = JbillingAPIFactory.getAPI();
+		} catch (JbillingAPIException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		try {
+			ContactWS[] userContacts = api.getUserContactsWS(userId);
+			String referenceNumber = null;
+			for (ContactWS currentContactWS : userContacts){
+				String firstName = currentContactWS.getFirstName();
+				String lastName = currentContactWS.getLastName();
+				String organizationName = currentContactWS.getOrganizationName();				
+				String[] fieldNames = currentContactWS.getFieldNames();				
+				String[] fieldValues = currentContactWS.getFieldValues();
+				//HERE WORKS AS NAME IS 1
+				
+
+				System.out.println("Contact "+firstName+" "+lastName+" "+organizationName+" fieldNames size:"+fieldNames.length+" fieldValues size:"+fieldValues.length);
+				
+				for (int i=0; i<fieldNames.length; i++){
+					String currentFieldName = fieldNames[i];
+					String currentFieldValue = fieldValues[i];
+					System.out.println("userFields["+i+"] currentFieldName:"+currentFieldName+" currentFieldValue:"+currentFieldValue);					
+				}
+				
+			}
+		}
+		catch (Exception e) {
+			/*
+			* There was an error during the user or order creation. Just print an
+			* error message.
+			*/
+			System.out.println("Error in user or order creation Exception:"+e.getMessage());
+		}		
+	}
+
 	public void trialUser(String username, String password){
 		/*
 		* We assume the String variables “username” and “password” contain the
@@ -145,6 +193,7 @@ public class IntegrationTutorial {
 			// Create the user's record.
 			UserWS newUser = new UserWS();
 			
+			
 			// Fill in the new user's data.
 			newUser.setMainRoleId(new Integer(5)); // Role “5” = “Customer”.
 			newUser.setStatusId(new Integer(1)); // Status “1” = “Active”.
@@ -155,6 +204,7 @@ public class IntegrationTutorial {
 			// Refer to Appendix A for currency codes.
 			newUser.setCurrencyId(new Integer(1));
 			newUser.setCreateDatetime(new java.util.Date()); // = now
+			
 			
 			
 			// 	If you're entering credit card information, you'll need to create
@@ -179,6 +229,7 @@ public class IntegrationTutorial {
 			contact.setPostalCode("12345");
 			contact.setFaxNumber("555-123456");
 			contact.setEmail("foo@bar.com");			
+			
 			
 			// Now we create two string arrays for the Ids and values.
 			String customContactIds[] = new String[1];
@@ -232,14 +283,16 @@ public class IntegrationTutorial {
 			*/
 			System.out.println("Error in user or order creation Exception:"+e.getMessage());
 		}		
-	}
+	}	
+	
 	
 	public static void main (String[] args){
 		IntegrationTutorial tutorial = new IntegrationTutorial();
 		
-		tutorial.getUserStatusFromUsername("admin");		
+		//tutorial.getUserStatusFromUsername("admin");		
 		//tutorial.authenticate("admin", "password");
 		//tutorial.trialUser("newusername", "newpassword");
 		//tutorial.getMainOrder(); //HERE
+		tutorial.getCustomerContacts(60);
 	}
 }

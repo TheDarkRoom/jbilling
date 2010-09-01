@@ -6,8 +6,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Hashtable;
 import java.util.List;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -43,15 +45,19 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 	private static final String ADHOC_CREATE_PATH = "/api/ddi/adhoc/create"; 
 	
 	//These need to set on create
-	//private String testReferenceNumber = "226730";
 	private static final int PAYMENT_METHOD_ACH = 2;
-	private static final String CCF_REFERENCE_NO = "1"; //The CCF id (customer_field_type) is set to 1,	
+	private static final String CCF_IDD_REFERENCE_NO = "1"; //The CCF id (customer_field_type) is set to 1,
+	private static final String CCF_IDD_CREATED_DATE = "2"; //The CCF id (customer_field_type) is set to 2,	
 	private static final String PROCESSOR = "PaymentIDirectDebitTask";
-	public static int CONNECTION_TIMEOUT = 60000;
+	private static int CONNECTION_TIMEOUT = 60000;
+	private static long EIGHTEEN_DAYS = (18l * 24 * 60 * 60 * 1000);
+	private static long FIVE_DAYS = (5l * 24 * 60 * 60 * 1000);	
 	
     //These should be set as PaymentTaskParams
 	public static String PARAM_IDD_USERNAME = "idd_username";
-	public static String PARAM_IDD_PASSWORD = "idd_password";	
+	public static String PARAM_IDD_PASSWORD = "idd_password";
+	public static String iddUsername;
+	public static String iddPassword;
  // Needs to be a String as GUI can only pass Strings! 	
 	
 	/**
@@ -98,7 +104,7 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 			sbParamsAdhocValidate.append("&adhoc_ddi[account_name]="+URLEncoder.encode(accountName,"UTF-8"));
 			sbParamsAdhocValidate.append("&adhoc_ddi[sort_code]="+URLEncoder.encode(sortCode,"UTF-8"));
 			sbParamsAdhocValidate.append("&adhoc_ddi[account_number]="+accountNumber);
-			sbParamsAdhocValidate.append("&adhoc_ddi[service_user][pslid]="+URLEncoder.encode(PARAM_IDD_USERNAME,"UTF-8"));			
+			sbParamsAdhocValidate.append("&adhoc_ddi[service_user][pslid]="+URLEncoder.encode(iddUsername,"UTF-8"));			
 			//Optional param
 			sbParamsAdhocValidate.append("&adhoc_ddi[email_address]="+URLEncoder.encode(emailAddress,"UTF-8"));
 			/*OPTIONAL Params: adhoc_ddi[payer_reference], adhoc_ddi[start_date]Format: YYYY-MM-DD adhoc_ddi[end_date],
@@ -185,7 +191,7 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 			sbParamsAdhocCreate.append("&adhoc_ddi[account_name]="+URLEncoder.encode(accountName,"UTF-8"));
 			sbParamsAdhocCreate.append("&adhoc_ddi[sort_code]="+URLEncoder.encode(sortCode,"UTF-8"));
 			sbParamsAdhocCreate.append("&adhoc_ddi[account_number]="+accountNumber);
-			sbParamsAdhocCreate.append("&adhoc_ddi[service_user][pslid]="+URLEncoder.encode(PARAM_IDD_USERNAME,"UTF-8"));			
+			sbParamsAdhocCreate.append("&adhoc_ddi[service_user][pslid]="+URLEncoder.encode(iddUsername,"UTF-8"));			
 			//Optional param
 			sbParamsAdhocCreate.append("&adhoc_ddi[email_address]="+URLEncoder.encode(emailAddress,"UTF-8"));
 			/*OPTIONAL Params: adhoc_ddi[payer_reference], adhoc_ddi[start_date]Format: YYYY-MM-DD adhoc_ddi[end_date],
@@ -278,6 +284,7 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
         LOG.debug("iDirectDebit update returned responseCode:"+responseCode+" responseMessage:"+responseMessage+" responseBody:"+responseBody);
 		
 		//Set paymentAuthDTO
+        
 		paymentAuthDTO.setCode1(responseCode);		
 		if (responseMessage!=null){
 			paymentAuthDTO.setCode2(responseMessage);
@@ -328,7 +335,8 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 			    
 			// write auth header for username and password
 			BASE64Encoder encoder = new BASE64Encoder();
-			String encodedCredential = encoder.encode( (PARAM_IDD_USERNAME + ":" + PARAM_IDD_PASSWORD).getBytes() );
+			String encodedCredential = encoder.encode( (iddUsername + ":" + iddPassword).getBytes() );
+			LOG.debug("callIDirectDebit - encoding username:"+iddUsername+" password:"+iddPassword);
 			connection.setRequestProperty("Authorization", "Basic " + encodedCredential);			
 		
 			// Send data - write inputStream
@@ -434,7 +442,9 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 	 * The customer ach must have been set up with a stored reference number	 * 
 	 */
 	public boolean process(PaymentDTOEx paymentDTOEx) throws PluggableTaskException {
-	
+
+		LOG.debug("process called paymentDTOEx:"+paymentDTOEx);		
+		
 		try{
 			// VALIDATION		
 			//Make sure we've got payment details
@@ -444,48 +454,55 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 			}
 			
 			//Make sure all the required params have been passed in
+			LOG.debug("process validateParameters called");				
 			validateParameters();
 			
-			// GET DETAILS referenceNumber, amountInPence and debitDate
-			// DebitDate - We assume here that the account has been created at least 12 days ago
-			DateFormat df = new SimpleDateFormat("yyyy-MM-dd");		       
-			String debitDate = df.format(System.currentTimeMillis()); //13 days after request		
-			
+			// GET DETAILS referenceNumber, amountInPence and debitDate					
 			// amountInPence - in DB its held without any decimal places
-			BigDecimal amount = paymentDTOEx.getAmount();
-			BigDecimal amountPence = amount.movePointRight(amount.scale());
-			int amountInPence = amountPence.intValue();
+			BigDecimal amountInPounds = paymentDTOEx.getAmount();
+			BigDecimal bDAmountInPence = amountInPounds.multiply(new BigDecimal(100));
+			int amountInPence = bDAmountInPence.intValue();		
 			
-			// referenceNumber - this is stored in customer contact field
-			UserDTOEx userDTOEx = (UserDTOEx) paymentDTOEx.getBaseUser();
-			
+			// referenceNumber - this is stored in customer contact field			
 			int userId = paymentDTOEx.getUserId();
+			LOG.debug("process userId:"+userId);			
 			ContactBL contactBL = new ContactBL();
 			List<ContactDTOEx> listOfContacts = contactBL.getAll(userId);
-			for (ContactDTOEx currentContact : listOfContacts){
-				Set<ContactFieldDTO> contactFields = currentContact.getFields();
-				
-				for (ContactFieldDTO currentContactField : contactFields){
-					String content = currentContactField.getContent();
-					LOG.debug("content:"+content);					
-				}
-				
-			}
+			LOG.debug("process listOfContacts size:"+listOfContacts.size());
 			
-			UserWS userWS = new UserWS(userDTOEx);
-			ContactWS contactWS = userWS.getContact();
-			String fieldNames[] = contactWS.getFieldNames();
-			String fieldValues[] = contactWS.getFieldValues();
 			String referenceNumber = null;
-			for (int i=0; i<fieldNames.length; i++){
-				LOG.debug("fieldNames["+i+"]:"+fieldNames[i]);
-				LOG.debug("fieldValues["+i+"]:"+fieldValues[i]);	
-				if ("ccf.idd_reference_no".equals(fieldNames[i])){
-					referenceNumber = fieldValues[i];
-					break;
-				}
-			}		
+			String iddCreatedDate = null;
+			for (ContactDTOEx currentContact : listOfContacts){
+				
+				//For debug
+				String address1 = currentContact.getAddress1();
+				String firstName = currentContact.getFirstName();
+				String lastName = currentContact.getLastName();
+				int contactId = currentContact.getId();
+				String organizationName = currentContact.getOrganizationName();
+				LOG.debug("process organizationName:"+organizationName+" firstName:"+firstName+" lastName:"+lastName+" contactId:"+contactId+" address1:"+address1);				
+				
+				//IDD Reference No
+				Hashtable<String,ContactFieldDTO> fieldsTable = currentContact.getFieldsTable();
+				ContactFieldDTO contactFieldRefNo = fieldsTable.get(CCF_IDD_REFERENCE_NO);
+				String content = contactFieldRefNo.getContent();
+				referenceNumber = content;
+				int typeId = contactFieldRefNo.getTypeId();
+				int id = contactFieldRefNo.getId();				
+				LOG.info("process referenceNumber retrieved:"+referenceNumber+" using CCF_IDD_REFERENCE_NO:"+CCF_IDD_REFERENCE_NO+" typeId:"+typeId+" id:"+id+" content:"+content);
+				
+				//IDD CreatedDate				
+				ContactFieldDTO contactFieldCreatedDate = fieldsTable.get(CCF_IDD_CREATED_DATE);
+				content = contactFieldCreatedDate.getContent();
+				iddCreatedDate = content;
+				typeId = contactFieldCreatedDate.getTypeId();
+				id = contactFieldCreatedDate.getId();				
+				LOG.info("process iddCreatedDate retrieved:"+referenceNumber+" using CCF_IDD_CREATED_DATE:"+CCF_IDD_CREATED_DATE+" typeId:"+typeId+" id:"+id+" content:"+content);				
+			}				    
 			
+			// DebitDate - With date created, we need to ensure that the payment date is at least 13 days more
+			String debitDate = getDirectDebitDate(iddCreatedDate);
+		       			
 			//make iDirectDebit call
 			LOG.info("process - calling update method with referenceNo:"+referenceNumber+" amountInPence:"+amountInPence+" debitDate:"+debitDate);
 			//Handle response and update db
@@ -495,13 +512,13 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 			paymentDTOEx.setAuthorization(paymentAuthDTOResponse);
 	        
 			//Set the PaymentAuthorizationDTO payment result
-			if (!("200".equals(paymentAuthDTOResponse.getCode1()))){						
+			if ("200".equals(paymentAuthDTOResponse.getCode1())){
 				paymentDTOEx.setPaymentResult(new PaymentResultDAS().find(Constants.RESULT_OK));
 				LOG.info("process setting success payment result:"+Constants.RESULT_OK);			
 			}
 			else{ //fail
 				paymentDTOEx.setPaymentResult(new PaymentResultDAS().find(Constants.RESULT_FAIL));
-				LOG.info("process setting success payment result:"+Constants.RESULT_FAIL);			
+				LOG.warn("process setting failed payment result:"+Constants.RESULT_FAIL);			
 			}	
 			
 			//Create the paymentAuthorization record
@@ -522,7 +539,53 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 	 * Ensure that these parameters are retrieved 
 	 */	
 	private void validateParameters() throws PluggableTaskException {
-		ensureGetParameter(PARAM_IDD_USERNAME);
+		
+		LOG.debug("process validateParameters");			
+		ensureGetParameter(PARAM_IDD_USERNAME);		
+		iddUsername = (String)parameters.get(PARAM_IDD_USERNAME);
+		
 		ensureGetParameter(PARAM_IDD_PASSWORD);
+		iddPassword = (String)parameters.get(PARAM_IDD_PASSWORD);
+		LOG.info("process validateParameters retrieved iddUsername:"+iddUsername+" iddPassword:"+iddPassword);			
 	}	
+	
+	/*
+	 * With date created, we need to ensure that the payment date is at least 18 days more (full 12 days from creation and full 5 days before collecting a payment!)
+	 * Dates are in yyyy-MM-dd format
+	 */	
+	public String getDirectDebitDate(String createdDate) throws PluggableTaskException {
+		
+		String directDebitDate = null;
+		
+		try{
+		
+			//Get time in ms for createdDate
+			DateFormat df = new SimpleDateFormat("yyyy-MM-dd");	
+			Date d = df.parse(createdDate);
+			long created = d.getTime(); 
+			
+			//Get time in ms for now
+			long now = System.currentTimeMillis();
+			
+			long interval = now - created;
+			//If created date was within 13 days, then we need to set the directDebit date to the future. 13 days once created + 5 full days for charge
+			if (interval<EIGHTEEN_DAYS){
+				//Add 1 day to ensure we have included the full amount of days as date will not be rounded
+				long directDebit = now + (EIGHTEEN_DAYS-interval) + (24l*60*60*1000);
+				directDebitDate = df.format(directDebit);
+			}
+			else{
+				//Add 1 day to ensure we are 5 full days from today
+				long directDebit = now + FIVE_DAYS + (24l*60*60*1000);
+				directDebitDate = df.format(directDebit);
+			}
+
+			LOG.debug("getDirectDebitDate createdDate:"+createdDate+" directDebitDate:"+directDebitDate);			
+		
+		}
+		catch(ParseException e){
+			LOG.error("getDirectDebitDate parseException:"+e.getMessage(),e);			
+		}
+		return directDebitDate;		
+	}		
 }

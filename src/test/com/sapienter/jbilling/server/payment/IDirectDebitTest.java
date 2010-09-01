@@ -2,11 +2,16 @@ package com.sapienter.jbilling.server.payment;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+
+import com.sapienter.jbilling.client.process.Trigger;
 import com.sapienter.jbilling.server.payment.tasks.PaymentIDirectDebitTask;
+import com.sapienter.jbilling.server.user.ContactBL;
+import com.sapienter.jbilling.server.user.ContactDTOEx;
 import com.sapienter.jbilling.server.user.ContactWS;
 import com.sapienter.jbilling.server.user.UserDTOEx;
 
 import com.sapienter.jbilling.server.user.UserWS;
+import com.sapienter.jbilling.server.user.contact.db.ContactFieldDTO;
 import com.sapienter.jbilling.server.user.db.AchDTO;
 import com.sapienter.jbilling.server.util.Constants;
 import com.sapienter.jbilling.server.util.api.JbillingAPI;
@@ -23,6 +28,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Date;
+import java.util.List;
+import java.util.Set;
 
 public class IDirectDebitTest extends TestCase{
 	
@@ -228,7 +235,8 @@ public class IDirectDebitTest extends TestCase{
 			
 			JbillingAPI api = null;
 			try {
-				api = JbillingAPIFactory.getAPI();
+				api = JbillingAPIFactory.getAPI();				
+				
 			} catch (JbillingAPIException e1) {
 				System.out.println("JbillingAPIException - Getting API. Exception:"+e1.getMessage());
 			} catch (IOException e1) {
@@ -260,6 +268,21 @@ public class IDirectDebitTest extends TestCase{
 				
 			}
 			
+			
+			/*
+			int userId = 60;
+			ContactBL contactBL = new ContactBL();
+			List<ContactDTOEx> listOfContacts = contactBL.getAll(userId);
+			for (ContactDTOEx currentContact : listOfContacts){
+				Set<ContactFieldDTO> contactFields = currentContact.getFields();
+				
+				for (ContactFieldDTO currentContactField : contactFields){
+					String content = currentContactField.getContent();
+					System.out.println("content:"+content);					
+				}
+				
+			}			
+			*/
 		}catch(Exception e){
 			System.out.println("Exception e:"+e.getMessage());
 		}

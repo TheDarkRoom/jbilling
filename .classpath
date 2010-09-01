@@ -89,5 +89,7 @@
 	<classpathentry kind="lib" path="C:/eclipse/workspace/jbilling/src/libs/client/WEB-INF/lib/commons-fileupload-1.1.1.jar"/>
 	<classpathentry kind="lib" path="C:/eclipse/workspace/jbilling/src/libs/client/WEB-INF/lib/commons-io-1.2.jar"/>
 	<classpathentry kind="lib" path="C:/jbilling/lib/servlet-api.jar"/>
+	<classpathentry kind="lib" path="src/build/jsp-classes"/>
+	<classpathentry kind="lib" path="src/descriptors/spring"/>
 	<classpathentry kind="output" path="output_bin"/>
 </classpath>

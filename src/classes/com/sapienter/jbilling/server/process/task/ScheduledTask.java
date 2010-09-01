@@ -61,7 +61,7 @@ public abstract class ScheduledTask extends PluggableTask implements IScheduledT
      */
     protected void _init(JobExecutionContext context) throws JobExecutionException {
         JobDataMap map = context.getJobDetail().getJobDataMap();
-        //setEntityId(map.getInt("entityId"));
+        setEntityId(map.getInt("entityId"));
         //TODO: Above doesnt compile
 
         parameters = new HashMap<String, Object>();

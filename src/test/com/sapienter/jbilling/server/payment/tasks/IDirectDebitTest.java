@@ -1,5 +1,6 @@
 package com.sapienter.jbilling.server.payment.tasks;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.text.NumberFormat;
@@ -8,6 +9,9 @@ import java.util.Date;
 import java.util.Locale;
 
 import com.sapienter.jbilling.server.payment.db.PaymentAuthorizationDTO;
+import com.sapienter.jbilling.server.util.api.JbillingAPI;
+import com.sapienter.jbilling.server.util.api.JbillingAPIException;
+import com.sapienter.jbilling.server.util.api.JbillingAPIFactory;
 
 import junit.framework.TestCase;
 
@@ -87,8 +91,8 @@ public class IDirectDebitTest extends TestCase{
 	public void testCreate(){
 		
 		//Prepare params
-		//String username = "apitestno31";
-		//String password = "APINo3196";
+		//String username = "";
+		//String password = "";
 		
 		String firstname = "John";
 		String lastname = "Smith";
@@ -122,8 +126,8 @@ public class IDirectDebitTest extends TestCase{
 	public void testUpdate(){
 		
 		//Prepare params
-		//String username = "apitestno31";
-		//String password = "APINo3196";
+		//String username = "";
+		//String password = "";
 		
 		//String referenceNumber = "226943";//Created on 2010-07-30 set for 2010-08-11
 		String referenceNumber = "226730"; //Created
@@ -220,5 +224,67 @@ public class IDirectDebitTest extends TestCase{
 		}
 	}
 	
+	/*
+	public void testInsertIDDCustomerContactFields(){
+		
+		int userId = 50;
+		String referenceNo = "111111";
+		String createdDate = "2010-08-11";
+		
+		PaymentIDirectDebitTask paymentIDirectDebitTask = new PaymentIDirectDebitTask();
+		boolean wasInserted = paymentIDirectDebitTask.insertIDDCustomerContactFields(userId, referenceNo, createdDate);
+		assertTrue(wasInserted);
+		
+	}
+	*/
 	
+	/*
+	 * When creating the ACH account, this needs to be hooked into the API.
+	 */
+	public void testCreateIDDAccount(){
+		
+		JbillingAPI api = null;
+		int userId = 50;		
+		String firstname = "Johnny";
+		String lastname = "Smith";
+		String address1 = "2 Hessle Mount";
+		String town = "Leeds";
+		String postcode = "LS6 1AA";
+		String country = "UK";
+		String accountName ="TestBankName";
+		String sortCode ="000000"; //aba_routing
+		int accountNumber =12345678;
+		String emailAddress = "ThomasVeitch@hotmail.com";		
+
+		try {		
+		
+			PaymentIDirectDebitTask paymentIDirectDebitTask = new PaymentIDirectDebitTask();
+			//TODO: Need to set username and password
+			paymentIDirectDebitTask.iddUsername = "";
+			paymentIDirectDebitTask.iddPassword = "";
+				
+			//Get api object
+			api = JbillingAPIFactory.getAPI();
+		
+		
+			boolean wasSetUp = paymentIDirectDebitTask.setupIDDAccount(api,
+					   					   							userId,
+					   					   							firstname, 
+					   					   							lastname, 
+					   					   							address1, 
+					   					   							town, 
+					   					   							postcode,
+					   					   							country,
+					   					   							accountName,
+					   					   							sortCode,
+					   					   							accountNumber,
+					   					   							emailAddress);		
+					
+			assertEquals(true, wasSetUp);
+		
+		} catch (Exception e) {
+			assertTrue(false);
+			System.out.println("iDirectDebit Exception:"+e.getMessage());	
+		} 
+	}	
 }

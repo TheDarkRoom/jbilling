@@ -1,5 +1,6 @@
 package com.sapienter.jbilling.server.payment.tasks;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
@@ -29,6 +30,9 @@ import com.sapienter.jbilling.server.user.UserDTOEx;
 import com.sapienter.jbilling.server.user.contact.db.ContactDTO;
 import com.sapienter.jbilling.server.user.contact.db.ContactFieldDTO;
 import com.sapienter.jbilling.server.util.Constants;
+import com.sapienter.jbilling.server.util.api.JbillingAPI;
+import com.sapienter.jbilling.server.util.api.JbillingAPIException;
+import com.sapienter.jbilling.server.util.api.JbillingAPIFactory;
 import com.sapienter.jbilling.server.pluggableTask.PaymentTask;
 import com.sapienter.jbilling.server.pluggableTask.PaymentTaskWithTimeout;
 import com.sapienter.jbilling.server.pluggableTask.admin.PluggableTaskException;
@@ -58,7 +62,9 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 	public static String PARAM_IDD_PASSWORD = "idd_password";
 	public static String iddUsername;
 	public static String iddPassword;
- // Needs to be a String as GUI can only pass Strings! 	
+	
+	//This is needed for created the IDirectDebit account via the GUI
+	JbillingAPI api = null;
 	
 	/**
 	* Validates a set of inputs. Should be used before creating a customer direct debit instruction
@@ -283,8 +289,7 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 		String responseBody = responseMap.get("responseBody");			
         LOG.debug("iDirectDebit update returned responseCode:"+responseCode+" responseMessage:"+responseMessage+" responseBody:"+responseBody);
 		
-		//Set paymentAuthDTO
-        
+		//Set paymentAuthDTO        
 		paymentAuthDTO.setCode1(responseCode);		
 		if (responseMessage!=null){
 			paymentAuthDTO.setCode2(responseMessage);
@@ -292,6 +297,7 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 		paymentAuthDTO.setProcessor(PROCESSOR);
 		Date now = new Date();
 		paymentAuthDTO.setCreateDate(now);
+		paymentAuthDTO.setTransactionId(referenceNumber+"_"+System.currentTimeMillis());
 		
 		//Error code
 		String error = "";
@@ -538,7 +544,7 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 	/*
 	 * Ensure that these parameters are retrieved 
 	 */	
-	private void validateParameters() throws PluggableTaskException {
+	public void validateParameters() throws PluggableTaskException {
 		
 		LOG.debug("process validateParameters");			
 		ensureGetParameter(PARAM_IDD_USERNAME);		
@@ -587,5 +593,120 @@ public class PaymentIDirectDebitTask extends PaymentTaskWithTimeout implements P
 			LOG.error("getDirectDebitDate parseException:"+e.getMessage(),e);			
 		}
 		return directDebitDate;		
-	}		
+	}
+
+	/*
+	 * Designed to be called by the GUI when setting up an account
+	 * Method will validate details first/
+	 * If valid, then will create an account with IDD
+	 * The referenceNumber which uniqely identifies and createdDate from IDD will be stored in the customer contact fields
+	 */		
+	public boolean setupIDDAccount(JbillingAPI api,
+								   int userId,
+								   String firstname, 
+								   String lastname, 
+								   String address1, 
+								   String town, 
+								   String postcode,
+								   String country,
+								   String accountName,
+								   String sortCode,
+								   int accountNumber,
+								   String emailAddress){
+				
+		//Set api for future reference
+		this.api = api;
+		
+		//validate details with iDirectDebit call
+		boolean wasValidated = validate(firstname, lastname, address1, town, postcode, country, accountName, sortCode, accountNumber, emailAddress);
+		if (!wasValidated){
+			LOG.error("setupIDDAccount - Validation error. Could not set up IDirectDebit account");
+			return false;
+		}
+		
+		//Create accout with iDirectDebit call
+		String referenceNumber = create(firstname, lastname, address1, town, postcode, country, accountName, sortCode, accountNumber, emailAddress);
+		if (referenceNumber==null || "".equals(referenceNumber)){
+			LOG.error("setupIDDAccount - Create error. Could not set up IDirectDebit account");
+			return false;			
+		}
+		
+		//Insert customer contact details
+		DateFormat df = new SimpleDateFormat("yyyy-MM-dd");		
+		String createdDate = df.format(new Date());
+		boolean wasInserted = insertIDDCustomerContactFields(userId, referenceNumber, createdDate);
+		if (!wasInserted){
+			LOG.error("setupIDDAccount - Error inserting customerContactFields. Whilst IDirectDebit is set up, a manual DB insertion is needed otherwise future billing will fail.");
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/*
+	 * Designed to be called after a IDirectDebit account has been created via the GUI
+	 * The referenceNumber and createdDate will need to be used and retrieved at a later date when payment is due.
+	 */		
+	public boolean insertIDDCustomerContactFields(int userId, String referenceNumber, String createdDate){
+				
+		// Create and initialize the jBilling API if not already set
+		if (api==null) {
+			LOG.info("insertIDDCustomerContactFields JBillingAPI not passed in so retrieving object...");			
+			try {
+				api = JbillingAPIFactory.getAPI();
+			} catch (JbillingAPIException e1) {
+				LOG.error("insertIDDCustomerContactFields JbillingAPIException thrown creating JBillingAPI Exception:"+e1.getMessage(),e1);	
+			} catch (IOException e1) {
+				LOG.error("insertIDDCustomerContactFields JbillingAPIException thrown creating JBillingAPI Exception:"+e1.getMessage(),e1);
+			}
+		}
+		else{
+			LOG.debug("insertIDDCustomerContactFields JBillingAPI is aready passed in.");			
+		}
+		
+		try {
+			ContactWS[] userContacts = api.getUserContactsWS(userId);
+			
+			for (ContactWS currentContactWS : userContacts){
+				String firstName = currentContactWS.getFirstName();
+				String lastName = currentContactWS.getLastName();
+				String organizationName = currentContactWS.getOrganizationName();				
+				String[] fieldNames = currentContactWS.getFieldNames();				
+				String[] fieldValues = currentContactWS.getFieldValues();
+				int contactMapTypeId = currentContactWS.getType();
+								
+				LOG.debug("insertIDDCustomerContactFields Contact retrieved name:"+firstName+" "+lastName+" organization:"+organizationName+ "contactMapTypeId:"+contactMapTypeId+" fieldNames size:"+fieldNames.length+" fieldValues size:"+fieldValues.length);
+								
+				for (int i=0; i<fieldNames.length; i++){
+					String currentFieldName = fieldNames[i];
+					String currentFieldValue = fieldValues[i];
+					
+					//Set referenceNumber
+					if (CCF_IDD_REFERENCE_NO.equals(currentFieldName)){
+						currentFieldValue = referenceNumber;
+						fieldValues[i] = currentFieldValue;
+						LOG.info("insertIDDCustomerContactFields Setting referenceNumber:"+referenceNumber);						
+					}
+					
+					//Set createdDate
+					if (CCF_IDD_CREATED_DATE.equals(currentFieldName)){
+						currentFieldValue = createdDate;
+						fieldValues[i] = currentFieldValue;
+						LOG.info("insertIDDCustomerContactFields Setting createdDate:"+createdDate);						
+					}
+										
+					LOG.debug("insertIDDCustomerContactFields contactCustomerFields["+i+"] currentFieldName:"+currentFieldName+" currentFieldValue:"+currentFieldValue);					
+				}
+				//Save changes
+				currentContactWS.setFieldValues(fieldValues);
+				api.updateUserContact(50, contactMapTypeId, currentContactWS);
+				LOG.info("insertIDDCustomerContactFields currentContactWS updated");
+			}//End for loop processing Contacts for user
+			return true;
+		}//End try
+		catch(Exception e){
+			LOG.error("insertIDDCustomerContactFields Exception thrown updating customer contact details userId"+userId+" referenceNumber:"+referenceNumber+" createdDate:"+createdDate+" WARNING - This needs to be checked and manually entered, otherwise payments will not be allowed in future.");
+			return false;
+		}
+	}
 }

@@ -284,6 +284,66 @@ public class IntegrationTutorial {
 			System.out.println("Error in user or order creation Exception:"+e.getMessage());
 		}		
 	}	
+
+	public void setCustomerContacts(int userId, String referenceNumber, String createdDate){
+		
+		// Create and initialize the jBilling API.
+		JbillingAPI api = null;
+		try {
+			api = JbillingAPIFactory.getAPI();
+		} catch (JbillingAPIException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		try {
+			ContactWS[] userContacts = api.getUserContactsWS(userId);
+			
+			for (ContactWS currentContactWS : userContacts){
+				String firstName = currentContactWS.getFirstName();
+				String lastName = currentContactWS.getLastName();
+				String organizationName = currentContactWS.getOrganizationName();				
+				String[] fieldNames = currentContactWS.getFieldNames();				
+				String[] fieldValues = currentContactWS.getFieldValues();
+				int contactMapTypeId = currentContactWS.getType();
+				//HERE WORKS AS NAME IS 1
+				
+				
+				System.out.println("Contact "+firstName+" "+lastName+" "+organizationName+ "contactMapTypeId:"+contactMapTypeId+" fieldNames size:"+fieldNames.length+" fieldValues size:"+fieldValues.length);
+								
+				for (int i=0; i<fieldNames.length; i++){
+					String currentFieldName = fieldNames[i];
+					String currentFieldValue = fieldValues[i];
+					
+					if ("1".equals(currentFieldName)){
+						currentFieldValue = referenceNumber;
+						fieldValues[i] = currentFieldValue;
+					}
+					
+					if ("2".equals(currentFieldName)){
+						currentFieldValue = createdDate;
+						fieldValues[i] = currentFieldValue;						
+					}
+										
+					System.out.println("userFields["+i+"] currentFieldName:"+currentFieldName+" currentFieldValue:"+currentFieldValue);					
+				}
+				//Set
+				currentContactWS.setFieldValues(fieldValues);
+				api.updateUserContact(50, contactMapTypeId, currentContactWS);
+			}
+		}
+		catch (Exception e) {
+			/*
+			* There was an error during the user or order creation. Just print an
+			* error message.
+			*/
+			System.out.println("Error in user or order creation Exception:"+e.getMessage());
+		}		
+	}
+	
 	
 	
 	public static void main (String[] args){
@@ -293,6 +353,7 @@ public class IntegrationTutorial {
 		//tutorial.authenticate("admin", "password");
 		//tutorial.trialUser("newusername", "newpassword");
 		//tutorial.getMainOrder(); //HERE
-		tutorial.getCustomerContacts(60);
+		//tutorial.getCustomerContacts(50);
+		tutorial.setCustomerContacts(50,"111111","2010-08-11");
 	}
 }
